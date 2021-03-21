@@ -1,10 +1,7 @@
 import "@nomiclabs/hardhat-ethers";
 import dotenv from "dotenv";
-import { task } from "hardhat/config";
 import type { HttpNetworkUserConfig } from "hardhat/types";
 import yargs from "yargs";
-
-import { makeTrade } from "./src/make_trade";
 
 const argv = yargs
   .option("network", {
@@ -35,12 +32,6 @@ if (["rinkeby", "mainnet"].includes(argv.network) && INFURA_KEY === undefined) {
     `Could not find Infura key in env, unable to connect to network ${argv.network}`
   );
 }
-
-task("trade", "Makes a random trade on GPv2 given the users balances")
-  .addParam("tokenListUrl", "The token-list to use to identify tradable tokens")
-  .setAction(async ({ tokenListUrl }, hardhatRuntime) => {
-    await makeTrade(tokenListUrl, hardhatRuntime);
-  });
 
 export default {
   solidity: "0.7.3",
