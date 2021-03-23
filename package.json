@@ -14,9 +14,9 @@
     "@nomiclabs/hardhat-ethers": "^2.0.2",
     "@openzeppelin/contracts": "^3.4.1",
     "@types/node-fetch": "^2.5.8",
-    "dotenv": "^8.2.0",
     "@types/yargs": "^16.0.0",
     "@uniswap/token-lists": "^1.0.0-beta.19",
+    "dotenv": "^8.2.0",
     "ethers": "^5.0.0",
     "hardhat": "^2.1.1",
     "node-fetch": "^2.6.1",
@@ -30,6 +30,7 @@
     "eslint-config-prettier": "^8.1.0",
     "eslint-plugin-import": "^2.22.1",
     "eslint-plugin-prettier": "^3.3.1",
-    "prettier": "^2.2.1"
+    "prettier": "^2.2.1",
+    "ts-node": "^9.1.1"
   }
 }
