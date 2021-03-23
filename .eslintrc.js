@@ -18,6 +18,7 @@ module.exports = {
   ],
   ignorePatterns: ["build/", "node_modules/", "!.prettierrc.js", "lib/"],
   rules: {
+    camelcase: "error",
     "import/order": [
       "error",
       {
