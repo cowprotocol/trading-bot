@@ -63,6 +63,16 @@ export class Api {
       headers: { "Content-Type": "application/json" },
     });
   }
+
+  async getExecutedSellAmount(uid: string): Promise<BigNumber> {
+    const response: OrderDetailResponse = await this.call(`orders/${uid}`);
+    return BigNumber.from(response.executedSellAmount);
+  }
+}
+
+interface OrderDetailResponse {
+  // Other fields are omitted until needed
+  executedSellAmount: string;
 }
 
 interface GetFeeResponse {

@@ -108,7 +108,8 @@ export async function makeTrade(
     GPv2Settlement[chain].address,
     trader.address,
     uid,
-    ethers
+    ethers,
+    api
   );
   if (!hasTraded) {
     throw `Order ${uid} wasn't traded in within timeout`;
@@ -225,7 +226,8 @@ async function waitForTrade(
   contract: string,
   trader: string,
   uid: string,
-  ethers: HardhatEthersHelpers
+  ethers: HardhatEthersHelpers,
+  api: Api
 ): Promise<boolean> {
   const settlement = await toSettlementContract(contract, ethers);
   const traded = new Promise((resolve: (value: boolean) => void) => {
@@ -239,5 +241,12 @@ async function waitForTrade(
   const timeout = new Promise((resolve: (value: boolean) => void) => {
     setTimeout(resolve, TRADE_TIMEOUT_SECONDS * 1000, false);
   });
-  return await Promise.race([traded, timeout]);
+  // Events are not very reliable, so in case we didn't receive it we query the API
+  // for the executed sell amount before concluding no trade happened.
+  const sawTradeEvent = await Promise.race([traded, timeout]);
+  if (!sawTradeEvent) {
+    return !(await api.getExecutedSellAmount(uid)).isZero();
+  } else {
+    return true;
+  }
 }
