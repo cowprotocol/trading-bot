@@ -27,6 +27,8 @@ You also need a [@uniswap/token-lists](https://github.com/Uniswap/token-lists) s
 yarn hardhat trade --token-list-url <token list> --network <network>
 ```
 
+This command will fetch a random token pair for which your account has sell balance from the token list, give approval if necessary, and place a sell order on GPv2. It will then wait for the trade to happen and return successfully if this was the case. It will fail in case there was any error along the way.
+
 ## Contributing
 
 Before submitting a PR make sure the changes comply with our linting rules.
