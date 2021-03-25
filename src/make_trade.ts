@@ -36,27 +36,28 @@ export async function makeTrade(
 ): Promise<void> {
   const [trader] = await ethers.getSigners();
   const chain = ChainUtils.fromNetwork(network);
+  const api = new Api(network.name);
 
   console.log(`Using account ${trader.address}`);
 
   const allTokens = await fetchTokenList(tokenListUrl, chain);
-  const tokensWithBalance = await filterTokensWithBalance(
+  const tokensWithBalance = await filterTradableTokens(
     allTokens,
     trader,
-    ethers
+    ethers,
+    api
   );
   if (tokensWithBalance.length === 0) {
     throw "Account doesn't have any balance in any of the provided token";
   }
 
-  const { token: sellToken, balance: sellBalance } = selectRandom(
-    tokensWithBalance
-  );
-  const buyToken = selectRandom(
-    allTokens.filter((token) => sellToken !== token)
-  );
+  const {
+    token: sellToken,
+    balance: sellBalance,
+    potentialBuyTokens,
+  } = selectRandom(tokensWithBalance);
+  const buyToken = selectRandom(potentialBuyTokens);
 
-  const api = new Api(network.name);
   const fee = await api.getFee(
     sellToken.address,
     buyToken.address,
@@ -131,30 +132,72 @@ async function fetchTokenList(
   return list.tokens.filter((token) => token.chainId === chainId);
 }
 
-interface TokenAndBalance {
+interface SellTokenCandidate {
   token: TokenInfo;
   balance: BigNumber;
+  potentialBuyTokens: TokenInfo[];
 }
 
-async function filterTokensWithBalance(
+async function filterTradableTokens(
   allTokens: TokenInfo[],
   trader: SignerWithAddress,
-  ethers: HardhatEthersHelpers
-): Promise<TokenAndBalance[]> {
+  ethers: HardhatEthersHelpers,
+  api: Api
+): Promise<SellTokenCandidate[]> {
   return (
     await Promise.all(
       allTokens.map(async (token) => {
         const erc20 = await toERC20(token.address, ethers);
         const balance: BigNumber = await erc20.balanceOf(trader.address);
+        let potentialBuyTokens: TokenInfo[] = [];
+        // Since fetching potential buy tokens is expensive, only do it for tokens that have balance
+        if (!balance.isZero()) {
+          potentialBuyTokens = await getPotentialBuyTokens(
+            token,
+            allTokens,
+            balance,
+            api
+          );
+        }
         return {
           token,
           balance,
+          potentialBuyTokens,
         };
       })
     )
-  ).filter((tokenAndBalance) => {
-    return !tokenAndBalance.balance.isZero();
+  ).filter((sellTokenCandidate) => {
+    return (
+      !sellTokenCandidate.balance.isZero() &&
+      sellTokenCandidate.potentialBuyTokens.length > 0
+    );
   });
+}
+
+async function getPotentialBuyTokens(
+  sellToken: TokenInfo,
+  candidates: TokenInfo[],
+  amount: BigNumber,
+  api: Api
+): Promise<TokenInfo[]> {
+  const potentialBuyTokens = [];
+  for (const buyToken of candidates) {
+    if (sellToken === buyToken) {
+      continue;
+    }
+    try {
+      await api.getFee(
+        sellToken.address,
+        buyToken.address,
+        amount,
+        OrderKind.SELL
+      );
+      potentialBuyTokens.push(buyToken);
+    } catch {
+      // ignoring tokens for which no fee path exists
+    }
+  }
+  return potentialBuyTokens;
 }
 
 const keccak = ethers.utils.id;
@@ -241,7 +284,7 @@ async function waitForTrade(
   const timeout = new Promise((resolve: (value: boolean) => void) => {
     setTimeout(resolve, TRADE_TIMEOUT_SECONDS * 1000, false);
   });
-  // Events are not very reliable, so in case we didn't receive it we query the API
+  // EVM events are not very reliable, so in case we didn't receive it we query the API
   // for the executed sell amount before concluding no trade happened.
   const sawTradeEvent = await Promise.race([traded, timeout]);
   if (!sawTradeEvent) {
