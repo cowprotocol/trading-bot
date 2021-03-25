@@ -1,4 +1,3 @@
-import { concat, hexlify, hexValue } from "@ethersproject/bytes";
 import {
   OrderKind,
   Order,
@@ -18,9 +17,18 @@ import { HardhatRuntimeEnvironment } from "hardhat/types";
 import fetch from "node-fetch";
 
 import { Api } from "./api";
-import { Chain, ChainUtils, selectRandom, toERC20 } from "./utils";
+import {
+  Chain,
+  ChainUtils,
+  selectRandom,
+  toERC20,
+  toSettlementContract,
+} from "./utils";
 
 const MAX_ALLOWANCE = ethers.constants.MaxUint256;
+const TRADE_TIMEOUT_SECONDS = 300;
+
+const { concat, hexlify, hexValue } = ethers.utils;
 
 export async function makeTrade(
   tokenListUrl: string,
@@ -28,6 +36,8 @@ export async function makeTrade(
 ): Promise<void> {
   const [trader] = await ethers.getSigners();
   const chain = ChainUtils.fromNetwork(network);
+
+  console.log(`Using account ${trader.address}`);
 
   const allTokens = await fetchTokenList(tokenListUrl, chain);
   const tokensWithBalance = await filterTokensWithBalance(
@@ -67,7 +77,7 @@ export async function makeTrade(
   );
 
   console.log(
-    `Selling ${sellAmountAfterFee.toString()} of ${
+    `🤹 Selling ${sellAmountAfterFee.toString()} of ${
       sellToken.name
     } for ${buyAmount} of ${buyToken.name} with a ${fee.toString()} fee`
   );
@@ -89,7 +99,26 @@ export async function makeTrade(
   );
   const signature = await signOrder(order, chain, trader);
   const uid = await api.placeOrder(order, signature);
-  console.log(`Successfully placed order with uid: ${uid}`);
+  console.log(`✅ Successfully placed order with uid: ${uid}`);
+
+  console.log(
+    `\n⏳ Waiting up to ${TRADE_TIMEOUT_SECONDS}s for trade event...`
+  );
+  const hasTraded = await waitForTrade(
+    GPv2Settlement[chain].address,
+    trader.address,
+    uid,
+    ethers
+  );
+  if (!hasTraded) {
+    throw `Order ${uid} wasn't traded in within timeout`;
+  }
+
+  const erc20 = await toERC20(buyToken.address, ethers);
+  const balance = await erc20.balanceOf(trader.address);
+  console.log(
+    `Trade was successful 🎉 ! New ${buyToken.name} balance: ${balance}`
+  );
 }
 
 async function fetchTokenList(
@@ -188,6 +217,27 @@ async function giveAllowanceIfNecessary(
   const allowance = await erc20.allowance(trader.address, allowanceManager);
   if (allowance.lt(sellAmount)) {
     await erc20.connect(trader).approve(allowanceManager, MAX_ALLOWANCE);
-    console.log(`Successfully set allowance for ${sellToken.name}`);
+    console.log(`✅ Successfully set allowance for ${sellToken.name}`);
   }
+}
+
+async function waitForTrade(
+  contract: string,
+  trader: string,
+  uid: string,
+  ethers: HardhatEthersHelpers
+): Promise<boolean> {
+  const settlement = await toSettlementContract(contract, ethers);
+  const traded = new Promise((resolve: (value: boolean) => void) => {
+    ethers.provider.on(settlement.filters.Trade(trader), (log) => {
+      // Hacky way to verify that the UID is part of the event data
+      if (log.data.includes(uid.substring(2))) {
+        resolve(true);
+      }
+    });
+  });
+  const timeout = new Promise((resolve: (value: boolean) => void) => {
+    setTimeout(resolve, TRADE_TIMEOUT_SECONDS * 1000, false);
+  });
+  return await Promise.race([traded, timeout]);
 }

@@ -1,4 +1,5 @@
 import { Contract } from "@ethersproject/contracts";
+import GPv2SettlementArtefact from "@gnosis.pm/gp-v2-contracts/deployments/mainnet/GPv2Settlement.json";
 import { HardhatEthersHelpers } from "@nomiclabs/hardhat-ethers/types";
 import ERC20 from "@openzeppelin/contracts/build/contracts/ERC20.json";
 import { Network } from "hardhat/types";
@@ -33,4 +34,11 @@ export async function toERC20(
   ethers: HardhatEthersHelpers
 ): Promise<Contract> {
   return new Contract(address, ERC20.abi, ethers.provider);
+}
+
+export async function toSettlementContract(
+  address: string,
+  ethers: HardhatEthersHelpers
+): Promise<Contract> {
+  return new Contract(address, GPv2SettlementArtefact.abi, ethers.provider);
 }
