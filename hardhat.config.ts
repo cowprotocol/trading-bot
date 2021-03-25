@@ -47,14 +47,17 @@ export default {
   networks: {
     mainnet: {
       ...sharedNetworkConfig,
+      chainId: 1,
       url: `https://mainnet.infura.io/v3/${INFURA_KEY}`,
     },
     rinkeby: {
       ...sharedNetworkConfig,
+      chainId: 4,
       url: `https://rinkeby.infura.io/v3/${INFURA_KEY}`,
     },
     xdai: {
       ...sharedNetworkConfig,
+      chainId: 100,
       url: "https://xdai.poanetwork.dev",
     },
   },
