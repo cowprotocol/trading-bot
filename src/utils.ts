@@ -13,7 +13,18 @@ export class ChainUtils {
     } else if (network.config.chainId === 100) {
       return Chain.XDAI;
     } else {
-      throw `Unsexpected network ${network.config.chainId}`;
+      throw `Unexpected network ${network.config.chainId}`;
+    }
+  }
+
+  static defaultTokenList(chain: Chain): string {
+    switch (chain) {
+      case Chain.MAINNET:
+        return "https://raw.githubusercontent.com/Uniswap/token-lists/master/test/schema/bigexample.tokenlist.json";
+      case Chain.RINKEBY:
+        return "https://raw.githubusercontent.com/compound-finance/token-list/master/compound.tokenlist.json";
+      case Chain.XDAI:
+        return "https://tokens.honeyswap.org/";
     }
   }
 }

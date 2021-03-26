@@ -21,13 +21,15 @@ export PK=<private key with some funds>
 export INFURA_KEY=<infura key> // Not needed on xDAI
 ```
 
-You also need a [@uniswap/token-lists](https://github.com/Uniswap/token-lists) style token list from which a random trade will be determined (e.g. the [Uniswap default list](https://raw.githubusercontent.com/Uniswap/token-lists/master/test/schema/bigexample.tokenlist.json)).
+Then run:
 
 ```
-yarn hardhat trade --token-list-url <token list> --network <network>
+yarn hardhat trade --network <network>
 ```
 
 This command will fetch a random token pair for which your account has sell balance from the token list, give approval if necessary, and place a sell order on GPv2. It will then wait for the trade to happen and return successfully if this was the case. It will fail in case there was any error along the way.
+
+It will use a default token list for the specified network. To specify a custom  [@uniswap/token-lists](https://github.com/Uniswap/token-lists) pass in the URL using `--token-list-url`.
 
 ## Contributing
 

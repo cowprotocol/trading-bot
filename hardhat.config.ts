@@ -37,7 +37,10 @@ if (["rinkeby", "mainnet"].includes(argv.network) && INFURA_KEY === undefined) {
 }
 
 task("trade", "Makes a random trade on GPv2 given the users balances")
-  .addParam("tokenListUrl", "The token-list to use to identify tradable tokens")
+  .addOptionalParam(
+    "tokenListUrl",
+    "The token-list to use to identify tradable tokens"
+  )
   .setAction(async ({ tokenListUrl }, hardhatRuntime) => {
     await makeTrade(tokenListUrl, hardhatRuntime);
   });
