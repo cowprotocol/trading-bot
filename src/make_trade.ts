@@ -191,7 +191,7 @@ async function getPotentialBuyTokens(
       continue;
     }
     try {
-      await api.getFee(
+      await api.estimateTradeAmount(
         sellToken.address,
         buyToken.address,
         amount,
