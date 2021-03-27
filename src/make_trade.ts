@@ -197,6 +197,12 @@ async function getPotentialBuyTokens(
         amount,
         OrderKind.SELL
       );
+      await api.getFee(
+        sellToken.address,
+        buyToken.address,
+        amount,
+        OrderKind.SELL
+      );
       potentialBuyTokens.push(buyToken);
     } catch {
       // ignoring tokens for which no fee path exists
