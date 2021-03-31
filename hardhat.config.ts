@@ -1,6 +1,6 @@
 import "@nomiclabs/hardhat-ethers";
 import dotenv from "dotenv";
-import { task } from "hardhat/config";
+import { task, types } from "hardhat/config";
 import type { HttpNetworkUserConfig } from "hardhat/types";
 import yargs from "yargs";
 
@@ -41,8 +41,14 @@ task("trade", "Makes a random trade on GPv2 given the users balances")
     "tokenListUrl",
     "The token-list to use to identify tradable tokens"
   )
-  .setAction(async ({ tokenListUrl }, hardhatRuntime) => {
-    await makeTrade(tokenListUrl, hardhatRuntime);
+  .addOptionalParam(
+    "maxSlippageBps",
+    "The maximum slippage the trader is willing to take in bps",
+    100,
+    types.int
+  )
+  .setAction(async ({ tokenListUrl, maxSlippageBps }, hardhatRuntime) => {
+    await makeTrade(tokenListUrl, maxSlippageBps, hardhatRuntime);
   });
 
 export default {

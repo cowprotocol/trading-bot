@@ -31,6 +31,8 @@ This command will fetch a random token pair for which your account has sell bala
 
 It will use a default token list for the specified network. To specify a custom  [@uniswap/token-lists](https://github.com/Uniswap/token-lists) pass in the URL using `--token-list-url`.
 
+It will also limit trades to a maximum of 1% slippage (100 bps). To provide a custom slippage tolerance pass in `--max-slippage-bps`
+
 ## Contributing
 
 Before submitting a PR make sure the changes comply with our linting rules.

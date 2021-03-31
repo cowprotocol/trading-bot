@@ -32,6 +32,7 @@ const { concat, hexlify, hexValue } = ethers.utils;
 
 export async function makeTrade(
   tokenListUrl: string | undefined,
+  maxSlippageBps: number,
   { ethers, network }: HardhatRuntimeEnvironment
 ): Promise<void> {
   const [trader] = await ethers.getSigners();
@@ -47,6 +48,7 @@ export async function makeTrade(
   const tokensWithBalance = await filterTradableTokens(
     allTokens,
     trader,
+    maxSlippageBps,
     ethers,
     api
   );
@@ -146,6 +148,7 @@ interface SellTokenCandidate {
 async function filterTradableTokens(
   allTokens: TokenInfo[],
   trader: SignerWithAddress,
+  maxSlippageBps: number,
   ethers: HardhatEthersHelpers,
   api: Api
 ): Promise<SellTokenCandidate[]> {
@@ -161,6 +164,7 @@ async function filterTradableTokens(
             token,
             allTokens,
             balance,
+            maxSlippageBps,
             api
           );
         }
@@ -183,6 +187,7 @@ async function getPotentialBuyTokens(
   sellToken: TokenInfo,
   candidates: TokenInfo[],
   amount: BigNumber,
+  maxSlippageBps: number,
   api: Api
 ): Promise<TokenInfo[]> {
   const potentialBuyTokens = [];
@@ -191,18 +196,42 @@ async function getPotentialBuyTokens(
       continue;
     }
     try {
-      await api.estimateTradeAmount(
-        sellToken.address,
-        buyToken.address,
-        amount,
-        OrderKind.SELL
-      );
       await api.getFee(
         sellToken.address,
         buyToken.address,
         amount,
         OrderKind.SELL
       );
+      const fullProceeds = await api.estimateTradeAmount(
+        sellToken.address,
+        buyToken.address,
+        amount,
+        OrderKind.SELL
+      );
+
+      // Until we have a spot price endpoint, we can only estimate the slippage by querying proceeds for a much smaller trade amount
+      const fractionalAmount = amount.div(100);
+      const fractionalProceeds = await api.estimateTradeAmount(
+        sellToken.address,
+        buyToken.address,
+        fractionalAmount,
+        OrderKind.SELL
+      );
+
+      // Measuring price in buyAmount/sellAmount (higher being better for the trader)
+      // fractionalPrice := fractionalProceeds / fractionalAmount
+      // fullPrice := fullProceeds / amount
+      // too much slippage if (fractionalPrice / fullPrice > 1 + maxSlippageBps)
+      if (
+        fractionalProceeds
+          .mul(amount)
+          .mul(10000)
+          .div(fractionalAmount.mul(fullProceeds))
+          .gt(BigNumber.from(10000 + maxSlippageBps))
+      ) {
+        continue;
+      }
+      console.log(maxSlippageBps);
       potentialBuyTokens.push(buyToken);
     } catch {
       // ignoring tokens for which no fee path exists
