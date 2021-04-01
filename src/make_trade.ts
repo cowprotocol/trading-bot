@@ -1,10 +1,4 @@
-import {
-  OrderKind,
-  Order,
-  signOrder as signOrderGP,
-  SigningScheme,
-  domain,
-} from "@gnosis.pm/gp-v2-contracts";
+import { OrderKind, Order } from "@gnosis.pm/gp-v2-contracts";
 import {
   GPv2Settlement,
   GPv2AllowanceManager,
@@ -18,17 +12,15 @@ import fetch from "node-fetch";
 
 import { Api } from "./api";
 import {
-  Chain,
   ChainUtils,
   selectRandom,
+  Signature,
   toERC20,
   toSettlementContract,
 } from "./utils";
 
 const MAX_ALLOWANCE = ethers.constants.MaxUint256;
 const TRADE_TIMEOUT_SECONDS = 300;
-
-const { concat, hexlify, hexValue } = ethers.utils;
 
 export async function makeTrade(
   tokenListUrl: string | undefined,
@@ -105,7 +97,7 @@ export async function makeTrade(
     buyAmount,
     fee
   );
-  const signature = await signOrder(order, chain, trader);
+  const signature = await Signature.fromOrder(order, chain, trader);
   const uid = await api.placeOrder(order, signature);
   console.log(`✅ Successfully placed order with uid: ${uid}`);
 
@@ -248,10 +240,7 @@ async function getPotentialBuyTokens(
 }
 
 const keccak = ethers.utils.id;
-// Using the most significant 4 bytes of a unique phrase's hash. TODO: use full hash after SC upgrade.
-const APP_DATA = parseInt(
-  ethers.utils.hexDataSlice(keccak("GPv2 Trading Bot"), 0, 4)
-);
+const APP_DATA = keccak("GPv2 Trading Bot");
 
 function createOrder(
   sellToken: TokenInfo,
@@ -274,27 +263,8 @@ function createOrder(
     feeAmount: fee,
     kind: OrderKind.SELL,
     partiallyFillable: false,
+    receiver: ethers.constants.AddressZero,
   };
-}
-
-async function signOrder(
-  order: Order,
-  chain: Chain,
-  signer: SignerWithAddress
-): Promise<string> {
-  const signature = await signOrderGP(
-    domain(chain, GPv2Settlement[chain].address),
-    order,
-    signer,
-    SigningScheme.MESSAGE
-  );
-
-  // signOrderGP doesn't encode the signing scheme (MESSAGE requires MSB to be 1)
-  // We therefore encode it manually.
-  // TODO: no longer necessary as soon as we upgrade the SmartContracts
-  const parts = ethers.utils.splitSignature(signature);
-  parts.v = parts.v | 0x80;
-  return hexlify(concat([parts.r, parts.s, hexValue(parts.v)]));
 }
 
 async function giveAllowanceIfNecessary(

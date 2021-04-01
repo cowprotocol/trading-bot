@@ -2,6 +2,8 @@ import { Order, OrderKind } from "@gnosis.pm/gp-v2-contracts";
 import { BigNumber } from "ethers";
 import fetch, { RequestInit } from "node-fetch";
 
+import { Signature } from "./utils";
+
 export class Api {
   network: string;
 
@@ -12,13 +14,13 @@ export class Api {
   private async call<T>(route: string, init?: RequestInit): Promise<T> {
     const url = `https://protocol-${this.network}.dev.gnosisdev.com/api/v1/${route}`;
     const response = await fetch(url, init);
-    const body = await response.json();
+    const body = await response.text();
     if (!response.ok) {
       throw `Calling "${url} ${JSON.stringify(init)} failed with ${
         response.status
-      }: ${JSON.stringify(body)}`;
+      }: ${body}`;
     }
-    return body;
+    return JSON.parse(body);
   }
 
   async getFee(
@@ -45,7 +47,7 @@ export class Api {
     return BigNumber.from(response.amount);
   }
 
-  async placeOrder(order: Order, signature: string): Promise<string> {
+  async placeOrder(order: Order, signature: Signature): Promise<string> {
     return await this.call("orders", {
       method: "post",
       body: JSON.stringify({
@@ -58,7 +60,9 @@ export class Api {
         feeAmount: order.feeAmount.toString(),
         kind: order.kind,
         partiallyFillable: order.partiallyFillable,
-        signature,
+        signature: signature.signature,
+        signingScheme: signature.signatureScheme,
+        receiver: order.receiver,
       }),
       headers: { "Content-Type": "application/json" },
     });
