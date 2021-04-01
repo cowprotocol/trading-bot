@@ -22,7 +22,7 @@ export class ChainUtils {
       case Chain.MAINNET:
         return "https://raw.githubusercontent.com/Uniswap/token-lists/master/test/schema/bigexample.tokenlist.json";
       case Chain.RINKEBY:
-        return "https://raw.githubusercontent.com/compound-finance/token-list/master/compound.tokenlist.json";
+        return "https://raw.githubusercontent.com/Uniswap/token-lists/master/test/schema/bigexample.tokenlist.json";
       case Chain.XDAI:
         return "https://tokens.honeyswap.org/";
     }
