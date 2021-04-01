@@ -65,7 +65,7 @@ export async function toSettlementContract(
 export class Signature {
   constructor(
     public readonly signature: string,
-    public readonly signatureScheme: string,
+    public readonly signatureScheme: string
   ) {}
 
   static async fromOrder(
