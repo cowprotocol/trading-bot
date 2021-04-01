@@ -277,7 +277,10 @@ async function giveAllowanceIfNecessary(
   const erc20 = await toERC20(sellToken.address, ethers);
   const allowance = await erc20.allowance(trader.address, allowanceManager);
   if (allowance.lt(sellAmount)) {
-    await erc20.connect(trader).approve(allowanceManager, MAX_ALLOWANCE);
+    const tx = await erc20
+      .connect(trader)
+      .approve(allowanceManager, MAX_ALLOWANCE);
+    await tx.wait();
     console.log(`✅ Successfully set allowance for ${sellToken.name}`);
   }
 }
