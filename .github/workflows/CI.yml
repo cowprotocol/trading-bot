@@ -40,11 +40,8 @@ jobs:
         username: ${{ secrets.DOCKER_USER }}
         password: ${{ secrets.DOCKER_PASSWORD }}
     - name: Deploy Main
-      if: github.ref == 'refs/heads/master'
+      if: github.ref == 'refs/heads/main'
       run: bash docker/deploy.sh staging
-    - name: Deploy Develop
-      if: github.ref == 'refs/heads/develop'
-      run: bash docker/deploy.sh develop
     - name: Deploy Tag
       if: startsWith(github.ref, 'refs/tags/')
       run: bash docker/deploy.sh ${GITHUB_REF##*/}
