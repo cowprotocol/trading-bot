@@ -16,7 +16,7 @@ const argv = yargs
 
 // Load environment variables.
 dotenv.config();
-const { INFURA_KEY, MNEMONIC, PK } = process.env;
+const { INFURA_KEY, MNEMONIC, PK, NODE_URL } = process.env;
 
 const DEFAULT_MNEMONIC =
   "candy maple cake sugar pudding cream honey rich smooth crumble sweet treat";
@@ -30,7 +30,11 @@ if (PK) {
   };
 }
 
-if (["rinkeby", "mainnet"].includes(argv.network) && INFURA_KEY === undefined) {
+if (
+  ["rinkeby", "mainnet"].includes(argv.network) &&
+  NODE_URL === undefined &&
+  INFURA_KEY === undefined
+) {
   throw new Error(
     `Could not find Infura key in env, unable to connect to network ${argv.network}`
   );
@@ -57,17 +61,17 @@ export default {
     mainnet: {
       ...sharedNetworkConfig,
       chainId: 1,
-      url: `https://mainnet.infura.io/v3/${INFURA_KEY}`,
+      url: NODE_URL || `https://mainnet.infura.io/v3/${INFURA_KEY}`,
     },
     rinkeby: {
       ...sharedNetworkConfig,
       chainId: 4,
-      url: `https://rinkeby.infura.io/v3/${INFURA_KEY}`,
+      url: NODE_URL || `https://rinkeby.infura.io/v3/${INFURA_KEY}`,
     },
     xdai: {
       ...sharedNetworkConfig,
       chainId: 100,
-      url: "https://xdai.poanetwork.dev",
+      url: NODE_URL || "https://xdai.poanetwork.dev",
     },
   },
 };
