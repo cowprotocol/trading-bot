@@ -57,6 +57,14 @@ export async function makeTrade(
   } = selectRandom(tokensWithBalance);
   const buyToken = selectRandom(potentialBuyTokens);
 
+  await giveAllowanceIfNecessary(
+    sellToken,
+    sellBalance,
+    trader,
+    GPv2AllowanceManager[chain].address,
+    ethers
+  );
+
   const fee = await api.getFee(
     sellToken.address,
     buyToken.address,
@@ -64,6 +72,9 @@ export async function makeTrade(
     OrderKind.SELL
   );
 
+  // This should rarely happen as we only select buy tokens for which fee was sufficient
+  // in the first place. Only if approval took a long time and gas prices increased significantly
+  // this could be an issue.
   if (sellBalance.lte(fee)) {
     throw new Error("Account doesn't have enough balance to pay fee");
   }
@@ -80,14 +91,6 @@ export async function makeTrade(
     `🤹 Selling ${sellAmountAfterFee.toString()} of ${
       sellToken.name
     } for ${buyAmount} of ${buyToken.name} with a ${fee.toString()} fee`
-  );
-
-  await giveAllowanceIfNecessary(
-    sellToken,
-    sellBalance,
-    trader,
-    GPv2AllowanceManager[chain].address,
-    ethers
   );
 
   const order = createOrder(
