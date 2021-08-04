@@ -22,6 +22,8 @@ import {
 const MAX_ALLOWANCE = ethers.constants.MaxUint256;
 const TRADE_TIMEOUT_SECONDS = 300;
 
+type Ethers = typeof ethers & HardhatEthersHelpers;
+
 export async function makeTrade(
   tokenListUrl: string | undefined,
   maxSlippageBps: number,
@@ -46,7 +48,7 @@ export async function makeTrade(
   );
   if (tokensWithBalance.length === 0) {
     throw new Error(
-      "Account doesn't have any balance in any of the provided token"
+      "Account doesn't have sufficient balance in any of the provided tokens"
     );
   }
 
@@ -144,7 +146,7 @@ async function filterTradableTokens(
   allTokens: TokenInfo[],
   trader: SignerWithAddress,
   maxSlippageBps: number,
-  ethers: HardhatEthersHelpers,
+  ethers: Ethers,
   api: Api
 ): Promise<SellTokenCandidate[]> {
   return (
@@ -275,7 +277,7 @@ async function giveAllowanceIfNecessary(
   sellAmount: BigNumber,
   trader: SignerWithAddress,
   allowanceManager: string,
-  ethers: HardhatEthersHelpers
+  ethers: Ethers
 ) {
   const erc20 = await toERC20(sellToken.address, ethers);
   const allowance = await erc20.allowance(trader.address, allowanceManager);
@@ -292,7 +294,7 @@ async function waitForTrade(
   contract: string,
   trader: string,
   uid: string,
-  ethers: HardhatEthersHelpers,
+  ethers: Ethers,
   api: Api
 ): Promise<boolean> {
   const settlement = await toSettlementContract(contract, ethers);

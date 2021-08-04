@@ -12,25 +12,25 @@
   "dependencies": {
     "@gnosis.pm/gp-v2-contracts": "0.0.1-alpha.16",
     "@nomiclabs/hardhat-ethers": "^2.0.2",
-    "@openzeppelin/contracts": "^3.4.1",
-    "@types/node-fetch": "^2.5.8",
-    "@types/yargs": "^16.0.0",
-    "@uniswap/token-lists": "^1.0.0-beta.19",
-    "dotenv": "^8.2.0",
-    "ethers": "^5.0.0",
-    "hardhat": "^2.1.1",
+    "@openzeppelin/contracts": "^4.2.0",
+    "@types/node-fetch": "^2.5.12",
+    "@types/yargs": "^17.0.2",
+    "@uniswap/token-lists": "^1.0.0-beta.25",
+    "dotenv": "^10.0.0",
+    "ethers": "^5.4.3",
+    "hardhat": "^2.5.0",
     "node-fetch": "^2.6.1",
-    "typescript": "^4.2.3",
-    "yargs": "^16.2.0"
+    "ts-node": "^10.1.0",
+    "typescript": "^4.3.5",
+    "yargs": "^17.0.1"
   },
   "devDependencies": {
-    "@typescript-eslint/eslint-plugin": "^4.18.0",
-    "@typescript-eslint/parser": "^4.18.0",
-    "eslint": "^7.22.0",
-    "eslint-config-prettier": "^8.1.0",
-    "eslint-plugin-import": "^2.22.1",
-    "eslint-plugin-prettier": "^3.3.1",
-    "prettier": "^2.2.1",
-    "ts-node": "^9.1.1"
+    "@typescript-eslint/eslint-plugin": "^4.29.0",
+    "@typescript-eslint/parser": "^4.29.0",
+    "eslint": "^7.32.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-plugin-import": "^2.23.4",
+    "eslint-plugin-prettier": "^3.4.0",
+    "prettier": "^2.3.2"
   }
 }

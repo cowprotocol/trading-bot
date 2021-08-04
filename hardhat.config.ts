@@ -12,7 +12,8 @@ const argv = yargs
     default: "rinkeby",
   })
   .help(false)
-  .version(false).argv;
+  .version(false)
+  .parseSync();
 
 // Load environment variables.
 dotenv.config();
