@@ -65,6 +65,7 @@ export async function toSettlementContract(
 
 export class Signature {
   constructor(
+    public readonly signer: string,
     public readonly signature: string,
     public readonly signatureScheme: string
   ) {}
@@ -85,6 +86,7 @@ export class Signature {
       scheme
     );
     return new Signature(
+      trader.address,
       ethers.utils.joinSignature(rawSignature.data),
       schemeName
     );

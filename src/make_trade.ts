@@ -1,7 +1,7 @@
 import { OrderKind, Order } from "@gnosis.pm/gp-v2-contracts";
 import {
   GPv2Settlement,
-  GPv2AllowanceManager,
+  GPv2VaultRelayer,
 } from "@gnosis.pm/gp-v2-contracts/networks.json";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { HardhatEthersHelpers } from "@nomiclabs/hardhat-ethers/types";
@@ -33,7 +33,7 @@ export async function makeTrade(
   const chain = ChainUtils.fromNetwork(network);
   const api = new Api(network.name);
 
-  console.log(`Using account ${trader.address}`);
+  console.log(`💰 Using account ${trader.address}`);
 
   const allTokens = await fetchTokenList(
     tokenListUrl || ChainUtils.defaultTokenList(chain),
@@ -63,7 +63,7 @@ export async function makeTrade(
     sellToken,
     sellBalance,
     trader,
-    GPv2AllowanceManager[chain].address,
+    GPv2VaultRelayer[chain].address,
     ethers
   );
 
@@ -89,10 +89,11 @@ export async function makeTrade(
     OrderKind.SELL
   );
 
+  const prettySellAmount = formatAmount(sellAmountAfterFee, sellToken);
+  const prettyBuyAmount = formatAmount(buyAmount, buyToken);
+  const prettyFee = formatAmount(fee, sellToken);
   console.log(
-    `🤹 Selling ${sellAmountAfterFee.toString()} of ${
-      sellToken.name
-    } for ${buyAmount} of ${buyToken.name} with a ${fee.toString()} fee`
+    `🤹 Selling ${prettySellAmount} of ${sellToken.name} for ${prettyBuyAmount} of ${buyToken.name} with a ${prettyFee} fee`
   );
 
   const order = createOrder(
@@ -123,9 +124,9 @@ export async function makeTrade(
   }
 
   const erc20 = await toERC20(buyToken.address, ethers);
-  const balance = await erc20.balanceOf(trader.address);
+  const balance = formatAmount(await erc20.balanceOf(trader.address), buyToken);
   console.log(
-    `Trade was successful 🎉 ! New ${buyToken.name} balance: ${balance}`
+    `🎉 Trade was successful! New ${buyToken.name} balance: ${balance}`
   );
 }
 
@@ -270,7 +271,6 @@ function createOrder(
     feeAmount: fee,
     kind: OrderKind.SELL,
     partiallyFillable: false,
-    receiver: ethers.constants.AddressZero,
   };
 }
 
@@ -319,4 +319,8 @@ async function waitForTrade(
   } else {
     return true;
   }
+}
+
+function formatAmount(amount: BigNumber, { decimals }: TokenInfo): string {
+  return ethers.utils.formatUnits(amount, decimals);
 }

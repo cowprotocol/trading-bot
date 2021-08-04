@@ -63,6 +63,7 @@ export class Api {
         signature: signature.signature,
         signingScheme: signature.signatureScheme,
         receiver: order.receiver,
+        from: signature.signer,
       }),
       headers: { "Content-Type": "application/json" },
     });
