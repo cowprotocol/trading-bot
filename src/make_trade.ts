@@ -103,6 +103,8 @@ export async function makeTrade(
     fee
   );
   const signature = await Signature.fromOrder(order, chain, trader);
+  console.log(`🔏 Signed with "${signature.signatureScheme}"`);
+
   const uid = await api.placeOrder(order, signature);
   console.log(`✅ Successfully placed order with uid: ${uid}`);
 

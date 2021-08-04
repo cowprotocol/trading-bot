@@ -1,7 +1,8 @@
 import {
-  domain,
+  EcdsaSigningScheme,
   Order,
   SigningScheme,
+  domain,
   signOrder,
 } from "@gnosis.pm/gp-v2-contracts";
 import GPv2SettlementArtefact from "@gnosis.pm/gp-v2-contracts/deployments/mainnet/GPv2Settlement.json";
@@ -73,15 +74,19 @@ export class Signature {
     chain: Chain,
     trader: SignerWithAddress
   ): Promise<Signature> {
+    const [scheme, schemeName] = selectRandom<[EcdsaSigningScheme, string]>([
+      [SigningScheme.EIP712, "eip712"],
+      [SigningScheme.ETHSIGN, "ethsign"],
+    ]);
     const rawSignature = await signOrder(
       domain(chain, GPv2Settlement[chain].address),
       order,
       trader,
-      SigningScheme.ETHSIGN
+      scheme
     );
     return new Signature(
       ethers.utils.joinSignature(rawSignature.data),
-      "ethsign"
+      schemeName
     );
   }
 }
