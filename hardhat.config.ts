@@ -71,6 +71,8 @@ export default {
     },
     xdai: {
       ...sharedNetworkConfig,
+      // Fix a gas price so that hardhat doesn't try to use EIP1559 which isn't supported on xDAI (but exposed by recent OE nodes)
+      gasPrice: 1e9,
       chainId: 100,
       url: NODE_URL || "https://xdai.poanetwork.dev",
     },
