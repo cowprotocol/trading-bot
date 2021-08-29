@@ -14,6 +14,7 @@ import { Api } from "./api";
 import {
   ChainUtils,
   selectRandom,
+  shuffle,
   Signature,
   toERC20,
   toSettlementContract,
@@ -55,9 +56,8 @@ export async function makeTrade(
   const {
     token: sellToken,
     balance: sellBalance,
-    potentialBuyTokens,
+    buyToken,
   } = selectRandom(tokensWithBalance);
-  const buyToken = selectRandom(potentialBuyTokens);
 
   await giveAllowanceIfNecessary(
     sellToken,
@@ -142,7 +142,7 @@ async function fetchTokenList(
 interface SellTokenCandidate {
   token: TokenInfo;
   balance: BigNumber;
-  potentialBuyTokens: TokenInfo[];
+  buyToken: TokenInfo;
 }
 
 async function filterTradableTokens(
@@ -157,40 +157,38 @@ async function filterTradableTokens(
       allTokens.map(async (token) => {
         const erc20 = await toERC20(token.address, ethers);
         const balance: BigNumber = await erc20.balanceOf(trader.address);
-        let potentialBuyTokens: TokenInfo[] = [];
-        // Since fetching potential buy tokens is expensive, only do it for tokens that have balance
-        if (!balance.isZero()) {
-          potentialBuyTokens = await getPotentialBuyTokens(
-            token,
-            allTokens,
-            balance,
-            maxSlippageBps,
-            api
-          );
+        // Since fetching the buy token is expensive, only do it for tokens that have balance
+        if (balance.isZero()) {
+          return null;
+        }
+        // For randomness we shuffle the list of buy tokens
+        const buyToken = await getFirstBuyToken(
+          token,
+          shuffle(allTokens),
+          balance,
+          maxSlippageBps,
+          api
+        );
+        if (buyToken === null) {
+          return null;
         }
         return {
           token,
           balance,
-          potentialBuyTokens,
+          buyToken,
         };
       })
     )
-  ).filter((sellTokenCandidate) => {
-    return (
-      !sellTokenCandidate.balance.isZero() &&
-      sellTokenCandidate.potentialBuyTokens.length > 0
-    );
-  });
+  ).filter((item): item is SellTokenCandidate => !!item);
 }
 
-async function getPotentialBuyTokens(
+async function getFirstBuyToken(
   sellToken: TokenInfo,
   candidates: TokenInfo[],
   balance: BigNumber,
   maxSlippageBps: number,
   api: Api
-): Promise<TokenInfo[]> {
-  const potentialBuyTokens = [];
+): Promise<TokenInfo | null> {
   for (const buyToken of candidates) {
     if (sellToken === buyToken) {
       continue;
@@ -204,10 +202,11 @@ async function getPotentialBuyTokens(
         OrderKind.SELL
       );
       if (fee.gte(balance)) {
-        // We won't have enough balance to pay the fee
+        console.log(
+          `  [DEBUG] Selling ${sellToken.name} for ${buyToken.name}: Not enough balance to pay the fee`
+        );
         continue;
       }
-
       // Check that a trade path exists to the candidate
       const fullProceeds = await api.estimateTradeAmount(
         sellToken.address,
@@ -237,14 +236,17 @@ async function getPotentialBuyTokens(
           .div(fractionalAmount.mul(fullProceeds))
           .gt(BigNumber.from(10000 + maxSlippageBps))
       ) {
+        console.log(
+          `  [DEBUG] Selling ${sellToken.name} for ${buyToken.name}: Too much slippage`
+        );
         continue;
       }
-      potentialBuyTokens.push(buyToken);
+      return buyToken;
     } catch {
       // ignoring tokens for which no fee path exists
     }
   }
-  return potentialBuyTokens;
+  return null;
 }
 
 const keccak = ethers.utils.id;
