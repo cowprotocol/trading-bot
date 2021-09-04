@@ -47,14 +47,30 @@ task("trade", "Makes a random trade on GPv2 given the users balances")
     "The token-list to use to identify tradable tokens"
   )
   .addOptionalParam(
-    "maxSlippageBps",
-    "The maximum slippage the trader is willing to take in bps",
+    "acceptableSlippageBps",
+    "The normal slippage threshold for a standard trade in bps",
     100,
     types.int
   )
-  .setAction(async ({ tokenListUrl, maxSlippageBps }, hardhatRuntime) => {
-    await makeTrade(tokenListUrl, maxSlippageBps, hardhatRuntime);
-  });
+  .addOptionalParam(
+    "maxSlippageBps",
+    "If no trades are possible with acceptable slippage, it tries to trade back to a good state unless the trade exceeds this slippage threshold in bps",
+    1000,
+    types.int
+  )
+  .setAction(
+    async (
+      { tokenListUrl, maxSlippageBps, acceptableSlippageBps },
+      hardhatRuntime
+    ) => {
+      await makeTrade(
+        tokenListUrl,
+        acceptableSlippageBps,
+        maxSlippageBps,
+        hardhatRuntime
+      );
+    }
+  );
 
 export default {
   solidity: "0.7.3",

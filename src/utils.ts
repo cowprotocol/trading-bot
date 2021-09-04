@@ -10,6 +10,7 @@ import { GPv2Settlement } from "@gnosis.pm/gp-v2-contracts/networks.json";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { HardhatEthersHelpers } from "@nomiclabs/hardhat-ethers/types";
 import ERC20 from "@openzeppelin/contracts/build/contracts/ERC20.json";
+import WethNetworks from "canonical-weth/networks.json";
 import { Contract, ethers } from "ethers";
 import { Network } from "hardhat/types";
 
@@ -34,6 +35,17 @@ export class ChainUtils {
         return "https://raw.githubusercontent.com/Uniswap/token-lists/master/test/schema/bigexample.tokenlist.json";
       case Chain.XDAI:
         return "https://tokens.honeyswap.org/";
+    }
+  }
+
+  static nativeToken(chain: Chain): string {
+    switch (chain) {
+      case Chain.MAINNET:
+        return WethNetworks.WETH9[1].address;
+      case Chain.RINKEBY:
+        return WethNetworks.WETH9[4].address;
+      case Chain.XDAI:
+        return "0xe91D153E0b41518A2Ce8Dd3D7944Fa863463a97d";
     }
   }
 }
