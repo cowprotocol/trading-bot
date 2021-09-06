@@ -1085,6 +1085,11 @@ camelcase@^5.0.0:
   resolved "https://registry.yarnpkg.com/camelcase/-/camelcase-5.3.1.tgz#e3c9b31569e106811df242f715725a1f4c494320"
   integrity sha512-L28STB170nwWS63UjtlEOE3dldQApaJXZkOI1uMFfzf3rRuPegHaHesyee+YxQ+W6SvRDQV6UrdOdRiR153wJg==
 
+canonical-weth@^1.4.0:
+  version "1.4.0"
+  resolved "https://registry.yarnpkg.com/canonical-weth/-/canonical-weth-1.4.0.tgz#e6b16574443e8ff0a132f1b4947bb2faf8c3e078"
+  integrity sha512-9rkLfAFndWALLhxd5lpyTX4RkV36WmVBZ92NYtYr1kWdAUmclRp7I5KkK4wvogzDcCI++yw53TLwx/GCPcocMg==
+
 chalk@^2.0.0, chalk@^2.4.2:
   version "2.4.2"
   resolved "https://registry.yarnpkg.com/chalk/-/chalk-2.4.2.tgz#cd42541677a54333cf541a49108c1432b44c9424"

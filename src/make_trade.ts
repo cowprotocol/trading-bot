@@ -12,6 +12,7 @@ import fetch from "node-fetch";
 
 import { Api } from "./api";
 import {
+  Chain,
   ChainUtils,
   selectRandom,
   shuffle,
@@ -27,6 +28,7 @@ type Ethers = typeof ethers & HardhatEthersHelpers;
 
 export async function makeTrade(
   tokenListUrl: string | undefined,
+  acceptableSlippageBps: number,
   maxSlippageBps: number,
   { ethers, network }: HardhatRuntimeEnvironment
 ): Promise<void> {
@@ -40,13 +42,15 @@ export async function makeTrade(
     tokenListUrl || ChainUtils.defaultTokenList(chain),
     chain
   );
-  const tokensWithBalance = await filterTradableTokens(
+  const tokensWithBalance = await getTradableTokens({
     allTokens,
     trader,
+    acceptableSlippageBps,
     maxSlippageBps,
     ethers,
-    api
-  );
+    api,
+    chain,
+  });
   if (tokensWithBalance.length === 0) {
     throw new Error(
       "Account doesn't have sufficient balance in any of the provided tokens"
@@ -145,28 +149,42 @@ interface SellTokenCandidate {
   buyToken: TokenInfo;
 }
 
-async function filterTradableTokens(
-  allTokens: TokenInfo[],
-  trader: SignerWithAddress,
-  maxSlippageBps: number,
-  ethers: Ethers,
-  api: Api
-): Promise<SellTokenCandidate[]> {
-  return (
+interface GetTradableTokensInput {
+  allTokens: TokenInfo[];
+  trader: SignerWithAddress;
+  acceptableSlippageBps: number;
+  maxSlippageBps: number;
+  ethers: Ethers;
+  api: Api;
+  chain: Chain;
+}
+async function getTradableTokens({
+  allTokens,
+  trader,
+  acceptableSlippageBps,
+  maxSlippageBps,
+  ethers,
+  api,
+  chain,
+}: GetTradableTokensInput): Promise<SellTokenCandidate[]> {
+  const allTokensWithBalance = (
     await Promise.all(
       allTokens.map(async (token) => {
         const erc20 = await toERC20(token.address, ethers);
         const balance: BigNumber = await erc20.balanceOf(trader.address);
-        // Since fetching the buy token is expensive, only do it for tokens that have balance
-        if (balance.isZero()) {
-          return null;
-        }
+        return { token, balance };
+      })
+    )
+  ).filter(({ balance }) => !balance.isZero());
+  const sellTokenCandidates = (
+    await Promise.all(
+      allTokensWithBalance.map(async ({ token, balance }) => {
         // For randomness we shuffle the list of buy tokens
         const buyToken = await getFirstBuyToken(
           token,
           shuffle(allTokens),
           balance,
-          maxSlippageBps,
+          acceptableSlippageBps,
           api
         );
         if (buyToken === null) {
@@ -180,6 +198,105 @@ async function filterTradableTokens(
       })
     )
   ).filter((item): item is SellTokenCandidate => !!item);
+  if (sellTokenCandidates.length !== 0) {
+    return sellTokenCandidates;
+  }
+  console.log(
+    "[DEBUG] No tokens available with acceptable slippage, trying to buy native token next"
+  );
+
+  const nativeToken = ChainUtils.nativeToken(chain);
+  const buyToken = allTokens.find(
+    ({ address }) => address.toLowerCase() === nativeToken.toLowerCase()
+  );
+  if (buyToken === undefined) {
+    console.log("[DEBUG] Wrapped native token is not available in token list");
+    return [];
+  }
+  return (
+    await Promise.all(
+      allTokensWithBalance
+        .filter(
+          ({ token }) =>
+            token.address.toLowerCase() != nativeToken.toLowerCase()
+        )
+        .map(async ({ token, balance }) => {
+          const slippageBps =
+            (await getSlippageBps({
+              sellToken: token,
+              buyToken,
+              amount: balance,
+              api,
+            })) ?? Infinity;
+          if (slippageBps > maxSlippageBps) {
+            console.log(
+              `  [DEBUG] Selling ${token.name} for ${
+                buyToken.name
+              }: Too much slippage (${(slippageBps / 100).toFixed(2)}%)`
+            );
+            return null;
+          }
+          return {
+            token,
+            balance,
+            buyToken,
+          };
+        })
+    )
+  ).filter((item): item is SellTokenCandidate => !!item);
+}
+
+interface GetSlippageBpsInput {
+  sellToken: TokenInfo;
+  buyToken: TokenInfo;
+  amount: BigNumber;
+  api: Api;
+}
+async function getSlippageBps({
+  sellToken,
+  buyToken,
+  amount,
+  api,
+}: GetSlippageBpsInput): Promise<number | null> {
+  // Check that a trade path exists
+  let slippageBps;
+  try {
+    const fullProceeds = await api.estimateTradeAmount(
+      sellToken.address,
+      buyToken.address,
+      amount,
+      OrderKind.SELL
+    );
+
+    // Until we have a spot price endpoint, we can only estimate the slippage by querying proceeds for a much smaller trade amount
+    const fractionalAmount = amount.div(100);
+    const fractionalProceeds = await api.estimateTradeAmount(
+      sellToken.address,
+      buyToken.address,
+      fractionalAmount,
+      OrderKind.SELL
+    );
+
+    // Measuring price in buyAmount/sellAmount (higher being better for the trader)
+    // fractionalPrice := fractionalProceeds / fractionalAmount
+    // fullPrice := fullProceeds / amount
+    // slippage is fractionalPrice / fullPrice - 1
+    // round to one base point
+    slippageBps = fractionalProceeds
+      .mul(amount)
+      .mul(10000)
+      .div(fractionalAmount.mul(fullProceeds))
+      .sub(10000);
+  } catch {
+    // no trading path exists
+    return null;
+  }
+
+  try {
+    return slippageBps.toNumber();
+  } catch {
+    return Infinity;
+  }
 }
 
 async function getFirstBuyToken(
@@ -193,58 +310,47 @@ async function getFirstBuyToken(
     if (sellToken === buyToken) {
       continue;
     }
+    let fee;
     try {
       // Check that a fee path exists to the candidate
-      const fee = await api.getFee(
+      fee = await api.getFee(
         sellToken.address,
         buyToken.address,
         balance,
         OrderKind.SELL
       );
-      if (fee.gte(balance)) {
-        console.log(
-          `  [DEBUG] Selling ${sellToken.name} for ${buyToken.name}: Not enough balance to pay the fee`
-        );
-        continue;
-      }
-      // Check that a trade path exists to the candidate
-      const fullProceeds = await api.estimateTradeAmount(
-        sellToken.address,
-        buyToken.address,
-        balance,
-        OrderKind.SELL
-      );
-
-      // Check that the trade is not incurring to much slippage.
-      // Until we have a spot price endpoint, we can only estimate the slippage by querying proceeds for a much smaller trade amount
-      const fractionalAmount = balance.div(100);
-      const fractionalProceeds = await api.estimateTradeAmount(
-        sellToken.address,
-        buyToken.address,
-        fractionalAmount,
-        OrderKind.SELL
-      );
-
-      // Measuring price in buyAmount/sellAmount (higher being better for the trader)
-      // fractionalPrice := fractionalProceeds / fractionalAmount
-      // fullPrice := fullProceeds / amount
-      // too much slippage if (fractionalPrice / fullPrice > 1 + maxSlippageBps)
-      if (
-        fractionalProceeds
-          .mul(balance)
-          .mul(10000)
-          .div(fractionalAmount.mul(fullProceeds))
-          .gt(BigNumber.from(10000 + maxSlippageBps))
-      ) {
-        console.log(
-          `  [DEBUG] Selling ${sellToken.name} for ${buyToken.name}: Too much slippage`
-        );
-        continue;
-      }
-      return buyToken;
     } catch {
-      // ignoring tokens for which no fee path exists
+      // no fee path exists, ignoring
+      continue;
     }
+    if (fee.gte(balance)) {
+      console.log(
+        `  [DEBUG] Selling ${sellToken.name} for ${buyToken.name}: Not enough balance to pay the fee`
+      );
+      continue;
+    }
+    // Check that a trade path exists to the candidate
+    const slippageBps = await getSlippageBps({
+      sellToken,
+      buyToken,
+      amount: balance,
+      api,
+    });
+    if (slippageBps === null) {
+      console.log(
+        `  [DEBUG] Selling ${sellToken.name} for ${buyToken.name}: Unable to estimate slippage`
+      );
+      continue;
+    }
+    if (slippageBps > maxSlippageBps) {
+      console.log(
+        `  [DEBUG] Selling ${sellToken.name} for ${
+          buyToken.name
+        }: Too much slippage (${(slippageBps / 100).toFixed(2)}%)`
+      );
+      continue;
+    }
+    return buyToken;
   }
   return null;
 }

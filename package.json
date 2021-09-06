@@ -16,6 +16,7 @@
     "@types/node-fetch": "^2.5.12",
     "@types/yargs": "^17.0.2",
     "@uniswap/token-lists": "^1.0.0-beta.25",
+    "canonical-weth": "^1.4.0",
     "dotenv": "^10.0.0",
     "ethers": "^5.4.3",
     "hardhat": "^2.5.0",
