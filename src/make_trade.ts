@@ -319,6 +319,14 @@ async function getFirstBuyToken(
         balance,
         OrderKind.SELL
       );
+      // Also check that a fee path exist in the opposite direction (may not be the case if target token is illiquid)
+      // so the the bot doesn't get stuck on an illiquid token
+      await api.getFee(
+        buyToken.address,
+        sellToken.address,
+        balance,
+        OrderKind.BUY
+      );
     } catch {
       // no fee path exists, ignoring
       continue;
