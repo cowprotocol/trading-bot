@@ -5,14 +5,14 @@ import fetch, { RequestInit } from "node-fetch";
 import { Signature } from "./utils";
 
 export class Api {
-  network: string;
+  baseUrl: string;
 
-  constructor(network: string) {
-    this.network = network;
+  constructor(baseUrl: string) {
+    this.baseUrl = baseUrl;
   }
 
   private async call<T>(route: string, init?: RequestInit): Promise<T> {
-    const url = `https://protocol-${this.network}.dev.gnosisdev.com/api/v1/${route}`;
+    const url = `${this.baseUrl}/api/v1/${route}`;
     const response = await fetch(url, init);
     const body = await response.text();
     if (!response.ok) {

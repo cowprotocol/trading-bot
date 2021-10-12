@@ -53,6 +53,10 @@ task("trade", "Makes a random trade on GPv2 given the users balances")
     types.int
   )
   .addOptionalParam(
+    "apiUrl",
+    "The base API URL to use for requests (defaults to staging on the current network, i.e. https://protocol-{$network}.dev.gnosisdev.com"
+  )
+  .addOptionalParam(
     "maxSlippageBps",
     "If no trades are possible with acceptable slippage, it tries to trade back to a good state unless the trade exceeds this slippage threshold in bps",
     1000,
@@ -60,10 +64,11 @@ task("trade", "Makes a random trade on GPv2 given the users balances")
   )
   .setAction(
     async (
-      { tokenListUrl, maxSlippageBps, acceptableSlippageBps },
+      { tokenListUrl, apiUrl, maxSlippageBps, acceptableSlippageBps },
       hardhatRuntime
     ) => {
       await makeTrade(
+        apiUrl,
         tokenListUrl,
         acceptableSlippageBps,
         maxSlippageBps,

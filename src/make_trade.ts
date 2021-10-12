@@ -27,6 +27,7 @@ const TRADE_TIMEOUT_SECONDS = 300;
 type Ethers = typeof ethers & HardhatEthersHelpers;
 
 export async function makeTrade(
+  apiUrl: string | undefined,
   tokenListUrl: string | undefined,
   acceptableSlippageBps: number,
   maxSlippageBps: number,
@@ -34,7 +35,9 @@ export async function makeTrade(
 ): Promise<void> {
   const [trader] = await ethers.getSigners();
   const chain = ChainUtils.fromNetwork(network);
-  const api = new Api(network.name);
+  const api = new Api(
+    apiUrl || `https://protocol-${network}.dev.gnosisdev.com`
+  );
 
   console.log(`💰 Using account ${trader.address}`);
 
