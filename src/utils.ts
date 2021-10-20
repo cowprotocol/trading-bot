@@ -10,10 +10,17 @@ import { GPv2Settlement } from "@gnosis.pm/gp-v2-contracts/networks.json";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { HardhatEthersHelpers } from "@nomiclabs/hardhat-ethers/types";
 import ERC20 from "@openzeppelin/contracts/build/contracts/ERC20.json";
+import { TokenInfo } from "@uniswap/token-lists";
 import WethNetworks from "canonical-weth/networks.json";
 import { Contract, ethers } from "ethers";
 import { Network } from "hardhat/types";
 
+export type QuoteDetails = {
+  sellToken: TokenInfo;
+  buyToken: TokenInfo;
+  fee: any;
+  sellBalance: any;
+};
 export class ChainUtils {
   static fromNetwork(network: Network): Chain {
     if (network.config.chainId === 1) {

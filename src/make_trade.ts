@@ -19,6 +19,7 @@ import {
   Signature,
   toERC20,
   toSettlementContract,
+  QuoteDetails,
 } from "./utils";
 
 const MAX_ALLOWANCE = ethers.constants.MaxUint256;
@@ -35,9 +36,11 @@ export async function makeTrade(
 ): Promise<void> {
   const [trader] = await ethers.getSigners();
   const chain = ChainUtils.fromNetwork(network);
+  console.log(`https://protocol-${network}.dev.gnosisdev.com`);
   const api = new Api(
     apiUrl || `https://protocol-${network}.dev.gnosisdev.com`
   );
+  console.log("API", api);
 
   console.log(`💰 Using account ${trader.address}`);
 
@@ -60,25 +63,13 @@ export async function makeTrade(
     );
   }
 
-  const {
-    token: sellToken,
-    balance: sellBalance,
-    buyToken,
-  } = selectRandom(tokensWithBalance);
-
-  await giveAllowanceIfNecessary(
-    sellToken,
-    sellBalance,
+  const { sellBalance, fee, buyToken, sellToken } = await seekTradablePair(
+    tokensWithBalance,
     trader,
-    GPv2VaultRelayer[chain].address,
+    chain,
+    api,
+    5,
     ethers
-  );
-
-  const fee = await api.getFee(
-    sellToken.address,
-    buyToken.address,
-    sellBalance,
-    OrderKind.SELL
   );
 
   // This should rarely happen as we only select buy tokens for which fee was sufficient
@@ -144,6 +135,56 @@ async function fetchTokenList(
   const response = await fetch(tokenListUrl);
   const list: TokenList = await response.json();
   return list.tokens.filter((token) => token.chainId === chainId);
+}
+
+async function seekTradablePair(
+  tokensWithBalance: any,
+  trader: any,
+  chain: Chain,
+  api: Api,
+  maxRetries: number,
+  ethers: Ethers
+): Promise<QuoteDetails> {
+  // TODO - Should probably enforce max_retries is finite
+  let numAttempts = 0;
+  while (numAttempts < maxRetries) {
+    const {
+      token: sellToken,
+      balance: sellBalance,
+      buyToken,
+    } = selectRandom(tokensWithBalance);
+
+    await giveAllowanceIfNecessary(
+      sellToken,
+      sellBalance,
+      trader,
+      GPv2VaultRelayer[chain].address,
+      ethers
+    );
+
+    try {
+      const fee = await api.getFee(
+        sellToken.address,
+        buyToken.address,
+        sellBalance,
+        OrderKind.SELL
+      );
+      return {
+        sellToken,
+        buyToken,
+        sellBalance,
+        fee,
+      };
+    } catch (error) {
+      numAttempts++;
+      console.log(
+        `Failed to acquire fee for sellToken ${sellToken.address}, buyToken ${buyToken.address} with error ${error}`
+      );
+    }
+  }
+  throw new Error(
+    `Max retries ${maxRetries} exceeded - could not find tradable token pair.`
+  );
 }
 
 interface SellTokenCandidate {
