@@ -138,8 +138,8 @@ async function fetchTokenList(
 }
 
 async function seekTradablePair(
-  tokensWithBalance: any,
-  trader: any,
+  tokensWithBalance: SellTokenCandidate[],
+  trader: SignerWithAddress,
   chain: Chain,
   api: Api,
   maxRetries: number,
