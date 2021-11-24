@@ -10,7 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@gnosis.pm/gp-v2-contracts": "1.0.2",
+    "@gnosis.pm/gp-v2-contracts": "1.1.2",
     "@nomiclabs/hardhat-ethers": "^2.0.2",
     "@openzeppelin/contracts": "^4.2.0",
     "@types/node-fetch": "^2.5.12",

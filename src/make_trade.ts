@@ -1,4 +1,12 @@
-import { OrderKind, Order } from "@gnosis.pm/gp-v2-contracts";
+import {
+  OrderKind,
+  Order,
+  Api,
+  signOrder,
+  SigningScheme,
+  EcdsaSigningScheme,
+  domain,
+} from "@gnosis.pm/gp-v2-contracts";
 import {
   GPv2Settlement,
   GPv2VaultRelayer,
@@ -6,17 +14,15 @@ import {
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { HardhatEthersHelpers } from "@nomiclabs/hardhat-ethers/types";
 import { TokenInfo, TokenList } from "@uniswap/token-lists";
-import { BigNumber, ethers } from "ethers";
+import { BigNumber, BigNumberish, ethers } from "ethers";
 import { HardhatRuntimeEnvironment } from "hardhat/types";
 import fetch from "node-fetch";
 
-import { Api } from "./api";
 import {
   Chain,
   ChainUtils,
   selectRandom,
   shuffle,
-  Signature,
   toERC20,
   toSettlementContract,
 } from "./utils";
@@ -36,7 +42,8 @@ export async function makeTrade(
   const [trader] = await ethers.getSigners();
   const chain = ChainUtils.fromNetwork(network);
   const api = new Api(
-    apiUrl || `https://protocol-${network}.dev.gnosisdev.com`
+    network.name,
+    apiUrl || `https://protocol-${network.name}.dev.gnosisdev.com`
   );
 
   console.log(`💰 Using account ${trader.address}`);
@@ -74,46 +81,42 @@ export async function makeTrade(
     ethers
   );
 
-  const fee = await api.getFee(
+  const order = await getQuote(
+    api,
     sellToken.address,
     buyToken.address,
     sellBalance,
-    OrderKind.SELL
+    trader.address
   );
+  // Apply slippage
+  order.buyAmount = BigNumber.from(order.buyAmount).mul(995).div(1000);
 
   // This should rarely happen as we only select buy tokens for which fee was sufficient
   // in the first place. Only if approval took a long time and gas prices increased significantly
   // this could be an issue.
-  if (sellBalance.lte(fee)) {
+  if (sellBalance.lte(order.feeAmount)) {
     throw new Error("Account doesn't have enough balance to pay fee");
   }
 
-  const sellAmountAfterFee = sellBalance.sub(fee);
-  const buyAmount = await api.estimateTradeAmount(
-    sellToken.address,
-    buyToken.address,
-    sellAmountAfterFee,
-    OrderKind.SELL
-  );
-
-  const prettySellAmount = formatAmount(sellAmountAfterFee, sellToken);
-  const prettyBuyAmount = formatAmount(buyAmount, buyToken);
-  const prettyFee = formatAmount(fee, sellToken);
+  const prettySellAmount = formatAmount(order.sellAmount, sellToken);
+  const prettyBuyAmount = formatAmount(order.buyAmount, buyToken);
+  const prettyFee = formatAmount(order.feeAmount, sellToken);
   console.log(
     `🤹 Selling ${prettySellAmount} of ${sellToken.name} for ${prettyBuyAmount} of ${buyToken.name} with a ${prettyFee} fee`
   );
 
-  const order = createOrder(
-    sellToken,
-    buyToken,
-    sellAmountAfterFee,
-    buyAmount,
-    fee
+  const signature = await signOrder(
+    domain(chain, GPv2Settlement[chain].address),
+    order,
+    trader,
+    selectRandom<EcdsaSigningScheme>([
+      SigningScheme.EIP712,
+      SigningScheme.ETHSIGN,
+    ])
   );
-  const signature = await Signature.fromOrder(order, chain, trader);
-  console.log(`🔏 Signed with "${signature.signatureScheme}"`);
+  console.log(`🔏 Signed with "${signature.scheme}"`);
 
-  const uid = await api.placeOrder(order, signature);
+  const uid = await api.placeOrder({ order, signature });
   console.log(`✅ Successfully placed order with uid: ${uid}`);
 
   console.log(
@@ -150,6 +153,8 @@ interface SellTokenCandidate {
   token: TokenInfo;
   balance: BigNumber;
   buyToken: TokenInfo;
+  sellAmount: BigNumber;
+  buyAmount: BigNumber;
 }
 
 interface GetTradableTokensInput {
@@ -183,21 +188,14 @@ async function getTradableTokens({
     await Promise.all(
       allTokensWithBalance.map(async ({ token, balance }) => {
         // For randomness we shuffle the list of buy tokens
-        const buyToken = await getFirstBuyToken(
+        return await getFirstBuyToken(
           token,
           shuffle(allTokens),
           balance,
           acceptableSlippageBps,
+          trader,
           api
         );
-        if (buyToken === null) {
-          return null;
-        }
-        return {
-          token,
-          balance,
-          buyToken,
-        };
       })
     )
   ).filter((item): item is SellTokenCandidate => !!item);
@@ -224,11 +222,19 @@ async function getTradableTokens({
             token.address.toLowerCase() != nativeToken.toLowerCase()
         )
         .map(async ({ token, balance }) => {
+          const { sellAmount, buyAmount } = await getQuote(
+            api,
+            token.address,
+            buyToken.address,
+            balance,
+            trader.address
+          );
           const slippageBps =
             (await getSlippageBps({
               sellToken: token,
               buyToken,
-              amount: balance,
+              sellAmount: BigNumber.from(sellAmount),
+              fullProceeds: BigNumber.from(buyAmount),
               api,
             })) ?? Infinity;
           if (slippageBps > maxSlippageBps) {
@@ -252,33 +258,28 @@ async function getTradableTokens({
 interface GetSlippageBpsInput {
   sellToken: TokenInfo;
   buyToken: TokenInfo;
-  amount: BigNumber;
+  sellAmount: BigNumber;
+  fullProceeds: BigNumber;
   api: Api;
 }
 async function getSlippageBps({
   sellToken,
   buyToken,
-  amount,
+  sellAmount,
+  fullProceeds,
   api,
 }: GetSlippageBpsInput): Promise<number | null> {
   // Check that a trade path exists
   let slippageBps;
   try {
-    const fullProceeds = await api.estimateTradeAmount(
-      sellToken.address,
-      buyToken.address,
-      amount,
-      OrderKind.SELL
-    );
-
     // Until we have a spot price endpoint, we can only estimate the slippage by querying proceeds for a much smaller trade amount
-    const fractionalAmount = amount.div(100);
-    const fractionalProceeds = await api.estimateTradeAmount(
-      sellToken.address,
-      buyToken.address,
-      fractionalAmount,
-      OrderKind.SELL
-    );
+    const fractionalAmount = sellAmount.div(100);
+    const fractionalProceeds = await api.estimateTradeAmount({
+      sellToken: sellToken.address,
+      buyToken: buyToken.address,
+      amount: fractionalAmount,
+      kind: OrderKind.SELL,
+    });
 
     // Measuring price in buyAmount/sellAmount (higher being better for the trader)
     // fractionalPrice := fractionalProceeds / fractionalAmount
@@ -286,7 +287,7 @@ async function getSlippageBps({
     // slippage is fractionalPrice / fullPrice - 1
     // round to one base point
     slippageBps = fractionalProceeds
-      .mul(amount)
+      .mul(sellAmount)
       .mul(10000)
       .div(fractionalAmount.mul(fullProceeds))
       .sub(10000);
@@ -307,34 +308,41 @@ async function getFirstBuyToken(
   candidates: TokenInfo[],
   balance: BigNumber,
   maxSlippageBps: number,
+  trader: SignerWithAddress,
   api: Api
-): Promise<TokenInfo | null> {
+): Promise<SellTokenCandidate | null> {
   for (const buyToken of candidates) {
     if (sellToken === buyToken) {
       continue;
     }
-    let fee;
+    let feeAmount, sellAmount, buyAmount;
     try {
       // Check that a fee path exists to the candidate
-      fee = await api.getFee(
+      const order = await getQuote(
+        api,
         sellToken.address,
         buyToken.address,
         balance,
-        OrderKind.SELL
+        trader.address
       );
+      feeAmount = BigNumber.from(order.feeAmount);
+      sellAmount = BigNumber.from(order.sellAmount);
+      buyAmount = BigNumber.from(order.buyAmount);
+
       // Also check that a fee path exist in the opposite direction (may not be the case if target token is illiquid)
       // so the the bot doesn't get stuck on an illiquid token
-      await api.getFee(
+      await getQuote(
+        api,
         buyToken.address,
         sellToken.address,
         balance,
-        OrderKind.BUY
+        trader.address
       );
     } catch {
       // no fee path exists, ignoring
       continue;
     }
-    if (fee.gte(balance)) {
+    if (feeAmount.gte(balance)) {
       console.log(
         `  [DEBUG] Selling ${sellToken.name} for ${buyToken.name}: Not enough balance to pay the fee`
       );
@@ -344,7 +352,8 @@ async function getFirstBuyToken(
     const slippageBps = await getSlippageBps({
       sellToken,
       buyToken,
-      amount: balance,
+      sellAmount,
+      fullProceeds: buyAmount,
       api,
     });
     if (slippageBps === null) {
@@ -361,37 +370,19 @@ async function getFirstBuyToken(
       );
       continue;
     }
-    return buyToken;
+    return {
+      token: sellToken,
+      balance,
+      buyToken,
+      buyAmount,
+      sellAmount,
+    };
   }
   return null;
 }
 
 const keccak = ethers.utils.id;
 const APP_DATA = keccak("GPv2 Trading Bot");
-
-function createOrder(
-  sellToken: TokenInfo,
-  buyToken: TokenInfo,
-  sellAmountAfterFee: BigNumber,
-  buyAmount: BigNumber,
-  fee: BigNumber
-): Order {
-  // getTime returns milliseconds, we are looking for seconds
-  const now = Math.floor(new Date().getTime() / 1000);
-  return {
-    sellToken: sellToken.address,
-    buyToken: buyToken.address,
-    sellAmount: sellAmountAfterFee,
-    // add 0.5 % slippage
-    buyAmount: buyAmount.mul(995).div(1000),
-    // valid 15 minutes
-    validTo: now + 900,
-    appData: APP_DATA,
-    feeAmount: fee,
-    kind: OrderKind.SELL,
-    partiallyFillable: false,
-  };
-}
 
 async function giveAllowanceIfNecessary(
   sellToken: TokenInfo,
@@ -434,12 +425,39 @@ async function waitForTrade(
   // for the executed sell amount before concluding no trade happened.
   const sawTradeEvent = await Promise.race([traded, timeout]);
   if (!sawTradeEvent) {
-    return !(await api.getExecutedSellAmount(uid)).isZero();
+    return !(await api.getExecutedSellAmount({ uid })).isZero();
   } else {
     return true;
   }
 }
 
-function formatAmount(amount: BigNumber, { decimals }: TokenInfo): string {
+function formatAmount(amount: BigNumberish, { decimals }: TokenInfo): string {
   return ethers.utils.formatUnits(amount, decimals);
+}
+
+function validTo(): number {
+  // getTime returns milliseconds, we are looking for seconds
+  const now = Math.floor(new Date().getTime() / 1000);
+  // valid 15 minutes
+  return now + 900;
+}
+
+async function getQuote(
+  api: Api,
+  sellToken: string,
+  buyToken: string,
+  sellAmountBeforeFee: BigNumberish,
+  from: string
+): Promise<Order> {
+  const { quote } = await api.getQuote({
+    sellToken,
+    buyToken,
+    validTo: validTo(),
+    appData: APP_DATA,
+    partiallyFillable: false,
+    from,
+    kind: OrderKind.SELL,
+    sellAmountBeforeFee,
+  });
+  return quote;
 }

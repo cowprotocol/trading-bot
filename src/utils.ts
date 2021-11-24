@@ -1,17 +1,8 @@
-import {
-  EcdsaSigningScheme,
-  Order,
-  SigningScheme,
-  domain,
-  signOrder,
-} from "@gnosis.pm/gp-v2-contracts";
 import GPv2SettlementArtefact from "@gnosis.pm/gp-v2-contracts/deployments/mainnet/GPv2Settlement.json";
-import { GPv2Settlement } from "@gnosis.pm/gp-v2-contracts/networks.json";
-import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { HardhatEthersHelpers } from "@nomiclabs/hardhat-ethers/types";
 import ERC20 from "@openzeppelin/contracts/build/contracts/ERC20.json";
 import WethNetworks from "canonical-weth/networks.json";
-import { Contract, ethers } from "ethers";
+import { Contract } from "ethers";
 import { Network } from "hardhat/types";
 
 export class ChainUtils {
@@ -81,34 +72,4 @@ export async function toSettlementContract(
   ethers: HardhatEthersHelpers
 ): Promise<Contract> {
   return new Contract(address, GPv2SettlementArtefact.abi, ethers.provider);
-}
-
-export class Signature {
-  constructor(
-    public readonly signer: string,
-    public readonly signature: string,
-    public readonly signatureScheme: string
-  ) {}
-
-  static async fromOrder(
-    order: Order,
-    chain: Chain,
-    trader: SignerWithAddress
-  ): Promise<Signature> {
-    const [scheme, schemeName] = selectRandom<[EcdsaSigningScheme, string]>([
-      [SigningScheme.EIP712, "eip712"],
-      [SigningScheme.ETHSIGN, "ethsign"],
-    ]);
-    const rawSignature = await signOrder(
-      domain(chain, GPv2Settlement[chain].address),
-      order,
-      trader,
-      scheme
-    );
-    return new Signature(
-      trader.address,
-      ethers.utils.joinSignature(rawSignature.data),
-      schemeName
-    );
-  }
 }
