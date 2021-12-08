@@ -24,8 +24,9 @@ export class ChainUtils {
         return "https://raw.githubusercontent.com/Uniswap/token-lists/master/test/schema/bigexample.tokenlist.json";
       case Chain.RINKEBY:
         return "https://raw.githubusercontent.com/Uniswap/token-lists/master/test/schema/bigexample.tokenlist.json";
-      case Chain.XDAI:
-        return "https://tokens.honeyswap.org/";
+      case Chain.XDAI: {
+        return "https://unpkg.com/@1hive/default-token-list/build/honeyswap-default.tokenlist.json";
+      }
     }
   }
 
