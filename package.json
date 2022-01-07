@@ -1,6 +1,7 @@
 {
   "name": "gp-v2-trading-bot",
   "version": "1.0.0",
+  "license": "(MIT OR Apache-2.0)",
   "description": "",
   "main": "index.js",
   "scripts": {
