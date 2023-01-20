@@ -63,7 +63,8 @@ export async function makeTrade(
   });
   if (tokensWithBalance.length === 0) {
     throw new Error(
-      "Account doesn't have sufficient balance in any of the provided tokens"
+      "Account doesn't have sufficient balance in any of the provided tokens.\n" +
+        `Ask the request-funding slack channel to fund the bot's ${network.name} account (${trader.address}).`
     );
   }
 
