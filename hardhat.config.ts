@@ -93,7 +93,7 @@ export default {
     xdai: {
       ...sharedNetworkConfig,
       chainId: 100,
-      url: NODE_URL || "https://xdai.poanetwork.dev",
+      url: NODE_URL || "https://rpc.gnosischain.com",
     },
   },
 };
