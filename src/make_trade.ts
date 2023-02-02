@@ -188,6 +188,12 @@ async function getTradableTokens({
   const sellTokenCandidates = (
     await Promise.all(
       allTokensWithBalance.map(async ({ token, balance }) => {
+        console.log(
+          `  [DEBUG] Candidate sell token ${token.name}: ${formatAmount(
+            balance,
+            token
+          )} ${token.symbol}`
+        );
         // For randomness we shuffle the list of buy tokens
         return await getFirstBuyToken(
           token,
@@ -240,9 +246,9 @@ async function getTradableTokens({
             })) ?? Infinity;
           if (slippageBps > maxSlippageBps) {
             console.log(
-              `  [DEBUG] Selling ${token.name} for ${
+              `  [DEBUG] Cannot sell ${token.name} for ${
                 buyToken.name
-              }: Too much slippage (${(slippageBps / 100).toFixed(2)}%)`
+              }: too much slippage (${(slippageBps / 100).toFixed(2)}%)`
             );
             return null;
           }
@@ -371,6 +377,13 @@ async function getFirstBuyToken(
       );
       continue;
     }
+    console.log(
+      `  [DEBUG] Candidate trade: ${sellToken.name} for ${
+        buyToken.name
+      } (${formatAmount(sellAmount, sellToken)} ${
+        sellToken.symbol
+      } to ${formatAmount(buyAmount, buyToken)} ${buyToken.symbol})`
+    );
     return {
       token: sellToken,
       balance,
