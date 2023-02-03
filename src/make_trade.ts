@@ -340,7 +340,7 @@ async function getFirstBuyToken(
         api,
         buyToken.address,
         sellToken.address,
-        balance,
+        buyAmount,
         trader.address
       );
     } catch {
