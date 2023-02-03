@@ -6,11 +6,11 @@ import {
   SigningScheme,
   EcdsaSigningScheme,
   domain,
-} from "@gnosis.pm/gp-v2-contracts";
+} from "@cowprotocol/contracts";
 import {
   GPv2Settlement,
   GPv2VaultRelayer,
-} from "@gnosis.pm/gp-v2-contracts/networks.json";
+} from "@cowprotocol/contracts/networks.json";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { HardhatEthersHelpers } from "@nomiclabs/hardhat-ethers/types";
 import { TokenInfo, TokenList } from "@uniswap/token-lists";
