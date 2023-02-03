@@ -6,6 +6,7 @@ import {
   SigningScheme,
   EcdsaSigningScheme,
   domain,
+  Environment,
 } from "@cowprotocol/contracts";
 import {
   GPv2Settlement,
@@ -41,10 +42,7 @@ export async function makeTrade(
 ): Promise<void> {
   const [trader] = await ethers.getSigners();
   const chain = ChainUtils.fromNetwork(network);
-  const api = new Api(
-    network.name,
-    apiUrl || `https://protocol-${network.name}.dev.gnosisdev.com`
-  );
+  const api = new Api(network.name, apiUrl || Environment.Dev);
 
   console.log(`💰 Using account ${trader.address}`);
 

@@ -54,7 +54,7 @@ task("trade", "Makes a random trade on GPv2 given the users balances")
   )
   .addOptionalParam(
     "apiUrl",
-    "The base API URL to use for requests (defaults to staging on the current network, i.e. https://protocol-{$network}.dev.gnosisdev.com"
+    "The base API URL to use for requests (defaults to staging on the current network)"
   )
   .addOptionalParam(
     "maxSlippageBps",
