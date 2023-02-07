@@ -1,4 +1,4 @@
-import GPv2SettlementArtefact from "@gnosis.pm/gp-v2-contracts/deployments/mainnet/GPv2Settlement.json";
+import GPv2SettlementArtefact from "@cowprotocol/contracts/deployments/mainnet/GPv2Settlement.json";
 import { HardhatEthersHelpers } from "@nomiclabs/hardhat-ethers/types";
 import ERC20 from "@openzeppelin/contracts/build/contracts/ERC20.json";
 import WethNetworks from "canonical-weth/networks.json";

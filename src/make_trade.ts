@@ -6,11 +6,12 @@ import {
   SigningScheme,
   EcdsaSigningScheme,
   domain,
-} from "@gnosis.pm/gp-v2-contracts";
+  Environment,
+} from "@cowprotocol/contracts";
 import {
   GPv2Settlement,
   GPv2VaultRelayer,
-} from "@gnosis.pm/gp-v2-contracts/networks.json";
+} from "@cowprotocol/contracts/networks.json";
 import { SignerWithAddress } from "@nomiclabs/hardhat-ethers/signers";
 import { HardhatEthersHelpers } from "@nomiclabs/hardhat-ethers/types";
 import { TokenInfo, TokenList } from "@uniswap/token-lists";
@@ -41,10 +42,7 @@ export async function makeTrade(
 ): Promise<void> {
   const [trader] = await ethers.getSigners();
   const chain = ChainUtils.fromNetwork(network);
-  const api = new Api(
-    network.name,
-    apiUrl || `https://protocol-${network.name}.dev.gnosisdev.com`
-  );
+  const api = new Api(network.name, apiUrl || Environment.Dev);
 
   console.log(`💰 Using account ${trader.address}`);
 
@@ -188,6 +186,12 @@ async function getTradableTokens({
   const sellTokenCandidates = (
     await Promise.all(
       allTokensWithBalance.map(async ({ token, balance }) => {
+        console.log(
+          `  [DEBUG] Candidate sell token ${token.name}: ${formatAmount(
+            balance,
+            token
+          )} ${token.symbol}`
+        );
         // For randomness we shuffle the list of buy tokens
         return await getFirstBuyToken(
           token,
@@ -240,9 +244,9 @@ async function getTradableTokens({
             })) ?? Infinity;
           if (slippageBps > maxSlippageBps) {
             console.log(
-              `  [DEBUG] Selling ${token.name} for ${
+              `  [DEBUG] Cannot sell ${token.name} for ${
                 buyToken.name
-              }: Too much slippage (${(slippageBps / 100).toFixed(2)}%)`
+              }: too much slippage (${(slippageBps / 100).toFixed(2)}%)`
             );
             return null;
           }
@@ -336,7 +340,7 @@ async function getFirstBuyToken(
         api,
         buyToken.address,
         sellToken.address,
-        balance,
+        buyAmount,
         trader.address
       );
     } catch {
@@ -371,6 +375,13 @@ async function getFirstBuyToken(
       );
       continue;
     }
+    console.log(
+      `  [DEBUG] Candidate trade: ${sellToken.name} for ${
+        buyToken.name
+      } (${formatAmount(sellAmount, sellToken)} ${
+        sellToken.symbol
+      } to ${formatAmount(buyAmount, buyToken)} ${buyToken.symbol})`
+    );
     return {
       token: sellToken,
       balance,
