@@ -1,3 +1,12 @@
 {
-   "signedContributors": []
+  "signedContributors": [
+    {
+      "name": "fleupold",
+      "id": 1200333,
+      "comment_id": 2810175620,
+      "created_at": "2025-04-16T16:57:03Z",
+      "repoId": 476356705,
+      "pullRequestNo": 9
+    }
+  ]
 }
