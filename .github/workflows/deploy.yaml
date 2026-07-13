@@ -28,7 +28,7 @@ jobs:
           labels: |
             org.opencontainers.image.licenses=GPL-3.0-or-later
       - name: Trading bot image build
-        uses: docker/build-push-action@ac9327eae2b366085ac7f6a2d02df8aa8ead720a # v2
+        uses: docker/build-push-action@f9f3042f7e2789586610d6e8b85c8f03e5195baf # v7.2.0
         with:
           context: .
           file: docker/Dockerfile
